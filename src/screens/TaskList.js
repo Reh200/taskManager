@@ -1,13 +1,21 @@
-import { useEffect, useState } from "react"
-import { Text, View, StyleSheet, ImageBackground, TouchableOpacity, FlatList } from "react-native"
+import { 
+    View, 
+    Text, 
+    ImageBackground, 
+    StyleSheet, 
+    TouchableOpacity, 
+    FlatList,
+    Alert
+} from "react-native"
 
-import Icon from "react-native-vector-icons/FontAwesome"
-
-import moment from "moment-timezone"
+import moment from 'moment-timezone'
 import 'moment/locale/pt-br'
+
+import Icon from 'react-native-vector-icons/FontAwesome'
 
 import todayImage from '../../assets/imgs/today.jpg'
 import Task from "../components/Task"
+import { useEffect, useState } from "react"
 import AddTask from "./AddTask"
 
 const taskDB = [
@@ -21,11 +29,17 @@ const taskDB = [
         id: Math.random(),
         desc: 'Ajustar o FIGMA',
         estimateAt: new Date(),
+        doneAt: null
+    },
+    {
+        id: Math.random(),
+        desc: 'Revisar a documentação do projeto',
+        estimateAt: new Date(),
         doneAt: new Date()
     },
     {
         id: Math.random(),
-        desc: 'Desenvolver o Backend do sistema',
+        desc: 'Organizar o Trello',
         estimateAt: new Date(),
         doneAt: null
     }
@@ -33,27 +47,32 @@ const taskDB = [
 
 export default function TaskList() {
 
-    const [tasks, setTasks] = useState([...taskDB])
-    const [showDoneTasks, setShowDoneTasks] = useState(true)
-    const [visibleTasks, setVisibleTasks] = useState([...tasks])
-    const [showAddTask, setShowAddTask] = useState(true)
-    
-    const userTimeZone = moment.tz.guess(); // Detecta o fuso horario do dispositivo
-    const today = moment().tz('America/Sao_Paulo').locale('pt-br').format('ddd, D [de] MMMM')
+    const today = moment().tz("America/Sao_Paulo")
+        .locale("pt-br").format('ddd, D [de] MMMM')
+
+    const[tasks, setTasks] = useState([...taskDB])
+
+    const[visibleTasks, setVisibleTasks] = useState([...tasks])
+    const[showDoneTasks, setShowDoneTasks] = useState(true)
+    const[showAddTask, setShowAddTask] = useState(false)
 
     useEffect(() => {
         filterTasks()
-    }, [showDoneTasks])
 
-    const toggleTask = taskId => {
-        const taskList = [...tasks]
-        taskList.forEach(task => {
-            if (task.id === taskId) {
+    }, [showDoneTasks, tasks])
+
+    const toggleTask = (taskId) => {
+        const taskList = [...visibleTasks]
+
+        for (let i = 0; i < taskList.length; i++) {
+            const task = taskList[i];
+            if(task.id === taskId){
                 task.doneAt = task.doneAt ? null : new Date()
+                break
             }
-        });
+        }
 
-        setTasks(taskList)
+        setVisibleTasks([...taskList])
         filterTasks()
     }
 
@@ -63,28 +82,49 @@ export default function TaskList() {
 
     const filterTasks = () => {
         let visibleTasks = null
-
         if(showDoneTasks){
             visibleTasks = [...tasks]
-
         } else {
-            const pending = task => task.doneAt === null
-            visibleTasks = tasks.filter(pending)
+            visibleTasks = tasks.filter(task => task.doneAt === null)
         }
-
         setVisibleTasks(visibleTasks)
     }
 
-    return (
+    const addTask = newTask => {
+
+        console.warn(newTask)
+        
+        if(!newTask.desc || !newTask.desc.trim()){
+            Alert.alert('Dados inválidos', 'Descrição não informada!')
+            return
+        }
+
+        const tempTasks = [...tasks]
+        tempTasks.push({
+            id: Math.random(),
+            desc: newTask.desc,
+            estimateAt: newTask.date,
+            doneAt: null
+        })
+
+        setTasks(tempTasks)
+        setShowAddTask(false)
+    }
+
+    return(
         <View style={styles.container}>
 
             <AddTask isVisible={showAddTask} 
-                onCancel={() => setShowAddTask(false)}/>
+                onCancel={() => setShowAddTask(false)}
+                onSave={addTask}
+            />
+            
+            <ImageBackground size={30} source={todayImage} style={styles.background}>
 
-            <ImageBackground source={todayImage} style={styles.background}>
                 <View style={styles.iconBar}>
                     <TouchableOpacity onPress={toggleFilter}>
-                        <Icon name={showDoneTasks ? 'eye' : 'eye-slash'} size={20} color={'#fff'} />
+                        <Icon name={showDoneTasks ? "eye" : "eye-slash"} 
+                          size={20} color={'#fff'} />
                     </TouchableOpacity>
                 </View>
 
@@ -92,39 +132,39 @@ export default function TaskList() {
                     <Text style={styles.title}>Hoje</Text>
                     <Text style={styles.subtitle}>{today}</Text>
                 </View>
+
             </ImageBackground>
 
             <View style={styles.taskList}>
-                <FlatList
+                <FlatList 
                     data={visibleTasks}
                     keyExtractor={item => `${item.id}`}
-                    renderItem={({ item }) => <Task {...item} onToggleTask={toggleTask} />}
+                    renderItem={({item}) => <Task {...item} onToggleTask={toggleTask}/>}
                 />
             </View>
 
-            <TouchableOpacity
-                style={styles.addButton}
+            <TouchableOpacity style={styles.addButton}
                 activeOpacity={0.7}
-                onPress={() => setShowAddTask(true)}
-            >
-                <Icon name="plus" size={20} color={'#fff'} />
+                onPress={() => setShowAddTask(true)}>
+                
+                <Icon name="plus" size={20} color={"#fff"} />
 
             </TouchableOpacity>
 
         </View>
     )
 }
-
 const styles = StyleSheet.create({
     container: {
         flex: 1
     },
     background: {
-        flex: 3
+        flex: 3,
+
     },
     taskList: {
         flex: 7
-    },
+    }, 
     titleBar: {
         flex: 1,
         justifyContent: 'flex-end'
@@ -141,12 +181,6 @@ const styles = StyleSheet.create({
         marginLeft: 20,
         marginBottom: 30
     },
-    iconBar: {
-        flexDirection: 'row',
-        marginHorizontal: 20,
-        justifyContent: 'flex-end',
-        marginTop: 25
-    },
     addButton: {
         position: 'absolute',
         right: 30,
@@ -157,5 +191,11 @@ const styles = StyleSheet.create({
         backgroundColor: '#B13B44',
         justifyContent: 'center',
         alignItems: 'center'
+    },
+    iconBar: {
+        flexDirection: 'row',
+        marginHorizontal: 20,
+        justifyContent: 'flex-end',
+        marginTop: 20
     }
 })
